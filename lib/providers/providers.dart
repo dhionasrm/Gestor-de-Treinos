@@ -5,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/exercise.dart';
 import '../data/models/goal_mode.dart';
 import '../data/models/session_records.dart';
+import '../data/models/timer_mode.dart';
 import '../data/repositories/session_repository.dart';
 import '../data/seed/seed_data.dart';
 
 const _goalModePrefsKey = 'goal_mode';
 const _themeModePrefsKey = 'theme_mode';
+const _timerModePrefsKey = 'timer_mode';
 
 final sessionRepositoryProvider = Provider<SessionRepository>((ref) {
   return SessionRepository();
@@ -60,6 +62,28 @@ class AppThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 final themeModeProvider = StateNotifierProvider<AppThemeModeNotifier, ThemeMode>((ref) {
   return AppThemeModeNotifier();
+});
+
+class TimerModeNotifier extends StateNotifier<TimerMode> {
+  TimerModeNotifier() : super(TimerMode.automatic) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString(_timerModePrefsKey);
+    state = TimerMode.fromStorageKey(stored);
+  }
+
+  Future<void> setTimerMode(TimerMode mode) async {
+    state = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_timerModePrefsKey, mode.storageKey);
+  }
+}
+
+final timerModeProvider = StateNotifierProvider<TimerModeNotifier, TimerMode>((ref) {
+  return TimerModeNotifier();
 });
 
 /// Próximo treino sugerido na rotação A -> B -> C -> A, com base no

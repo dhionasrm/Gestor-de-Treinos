@@ -97,6 +97,32 @@ class SessionRepository {
     );
   }
 
+  /// Conta quantas séries foram registradas para este exercício na última
+  /// sessão anterior (excluindo a sessão atual), para sugerir a mesma
+  /// quantidade de séries.
+  Future<int?> getLastSessionSetCount({
+    required String exerciseId,
+    required int excludeSessionId,
+  }) async {
+    final db = await _appDb.database;
+    final seRows = await db.rawQuery('''
+      SELECT se.id
+      FROM session_exercises se
+      INNER JOIN workout_sessions ws ON ws.id = se.session_id
+      WHERE se.exercise_id = ? AND ws.id != ?
+      ORDER BY ws.date DESC
+      LIMIT 1
+    ''', [exerciseId, excludeSessionId]);
+    if (seRows.isEmpty) return null;
+    final sessionExerciseId = seRows.first['id'] as int;
+    final countRows = await db.rawQuery(
+      'SELECT COUNT(*) as cnt FROM set_logs WHERE session_exercise_id = ?',
+      [sessionExerciseId],
+    );
+    final count = countRows.first['cnt'] as int;
+    return count > 0 ? count : null;
+  }
+
   Future<void> completeSession(int sessionId) async {
     final db = await _appDb.database;
     await db.update(

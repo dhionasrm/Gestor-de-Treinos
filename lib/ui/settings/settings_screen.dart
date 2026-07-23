@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/goal_mode.dart';
+import '../../data/models/timer_mode.dart';
 import '../../providers/providers.dart';
 
 extension on ThemeMode {
@@ -25,6 +26,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final goalMode = ref.watch(goalModeProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final timerMode = ref.watch(timerModeProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Configurações')),
@@ -72,6 +74,29 @@ class SettingsScreen extends ConsumerWidget {
                       title: Text(mode.label),
                       subtitle:
                           Text('${mode.repRange} · descanso ${mode.restSeconds}s · ${mode.tip}'),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text('Cronômetro de descanso', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          RadioGroup<TimerMode>(
+            groupValue: timerMode,
+            onChanged: (value) {
+              if (value != null) {
+                ref.read(timerModeProvider.notifier).setTimerMode(value);
+              }
+            },
+            child: Column(
+              children: [
+                for (final mode in TimerMode.values)
+                  Card(
+                    child: RadioListTile<TimerMode>(
+                      value: mode,
+                      title: Text(mode.label),
+                      subtitle: Text(mode.description),
                     ),
                   ),
               ],

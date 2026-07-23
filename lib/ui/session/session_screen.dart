@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/goal_mode.dart';
 import '../../data/models/session_records.dart';
+import '../../data/models/timer_mode.dart';
 import '../../data/seed/seed_data.dart';
 import '../../providers/providers.dart';
 import '../shared/open_youtube.dart';
@@ -74,6 +75,7 @@ class _ExerciseCard extends ConsumerStatefulWidget {
 class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
   final _weightController = TextEditingController();
   final _repsController = TextEditingController();
+  int? _lastSetCount;
 
   @override
   void initState() {
@@ -82,10 +84,17 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
   }
 
   Future<void> _loadDefaults() async {
-    // Só sugere valores se ainda não há séries registradas para este
+    final repo = ref.read(sessionRepositoryProvider);
+    final lastSetCount = await repo.getLastSessionSetCount(
+      exerciseId: widget.entry.exerciseId,
+      excludeSessionId: widget.sessionId,
+    );
+    if (!mounted) return;
+    setState(() => _lastSetCount = lastSetCount);
+
+    // Só sugere peso/reps se ainda não há séries registradas para este
     // exercício nesta sessão (primeira série).
     if (widget.entry.sets.isNotEmpty) return;
-    final repo = ref.read(sessionRepositoryProvider);
     final last = await repo.getLastLoggedSet(
       exerciseId: widget.entry.exerciseId,
       excludeSessionId: widget.sessionId,
@@ -117,9 +126,14 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
       reps: reps,
     );
     ref.invalidate(sessionDetailProvider(widget.sessionId));
-    if (mounted) {
+    final timerMode = ref.read(timerModeProvider);
+    if (mounted && timerMode == TimerMode.automatic) {
       showRestTimer(context, widget.goalMode.restSeconds);
     }
+  }
+
+  void _startRestTimer() {
+    showRestTimer(context, widget.goalMode.restSeconds);
   }
 
   Future<void> _deleteSet(int setId) async {
@@ -131,6 +145,8 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
   @override
   Widget build(BuildContext context) {
     final exercise = findExerciseById(widget.entry.slotId, widget.entry.exerciseId);
+    final timerMode = ref.watch(timerModeProvider);
+    final suggestedSets = _lastSetCount ?? widget.goalMode.suggestedSets;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -144,6 +160,12 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
                 Expanded(
                   child: Text(exercise.name, style: Theme.of(context).textTheme.titleMedium),
                 ),
+                if (timerMode == TimerMode.manual)
+                  IconButton(
+                    icon: const Icon(Icons.timer_outlined),
+                    tooltip: 'Iniciar descanso',
+                    onPressed: _startRestTimer,
+                  ),
                 IconButton(
                   icon: const Icon(Icons.smart_display_outlined),
                   tooltip: 'Ver como executar no YouTube',
@@ -152,7 +174,7 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
               ],
             ),
             Text(
-              'Sugerido: ${widget.goalMode.suggestedSets} séries · ${widget.goalMode.repRange} · descanso ${widget.goalMode.restSeconds}s',
+              'Sugerido: $suggestedSets séries · ${widget.goalMode.repRange} · descanso ${widget.goalMode.restSeconds}s',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),
