@@ -21,6 +21,18 @@ enum GoalMode {
         GoalMode.muscleGain => '6–10 reps',
       };
 
+  int get repMin => switch (this) {
+        GoalMode.weightLoss => 12,
+        GoalMode.muscleGain => 6,
+      };
+
+  int get repMax => switch (this) {
+        GoalMode.weightLoss => 15,
+        GoalMode.muscleGain => 10,
+      };
+
+  int get suggestedReps => ((repMin + repMax) / 2).round();
+
   int get restSeconds => switch (this) {
         GoalMode.weightLoss => 45,
         GoalMode.muscleGain => 90,

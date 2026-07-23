@@ -76,6 +76,30 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
   final _repsController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    _loadDefaults();
+  }
+
+  Future<void> _loadDefaults() async {
+    // Só sugere valores se ainda não há séries registradas para este
+    // exercício nesta sessão (primeira série).
+    if (widget.entry.sets.isNotEmpty) return;
+    final repo = ref.read(sessionRepositoryProvider);
+    final last = await repo.getLastLoggedSet(
+      exerciseId: widget.entry.exerciseId,
+      excludeSessionId: widget.sessionId,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (last?.weightKg != null) {
+        _weightController.text = last!.weightKg!.toStringAsFixed(1);
+      }
+      _repsController.text = (last?.reps ?? widget.goalMode.suggestedReps).toString();
+    });
+  }
+
+  @override
   void dispose() {
     _weightController.dispose();
     _repsController.dispose();
@@ -92,8 +116,6 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
       weightKg: weight,
       reps: reps,
     );
-    _weightController.clear();
-    _repsController.clear();
     ref.invalidate(sessionDetailProvider(widget.sessionId));
     if (mounted) {
       showRestTimer(context, widget.goalMode.restSeconds);
@@ -130,7 +152,7 @@ class _ExerciseCardState extends ConsumerState<_ExerciseCard> {
               ],
             ),
             Text(
-              'Sugerido: ${widget.goalMode.repRange} · descanso ${widget.goalMode.restSeconds}s',
+              'Sugerido: ${widget.goalMode.suggestedSets} séries · ${widget.goalMode.repRange} · descanso ${widget.goalMode.restSeconds}s',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 8),

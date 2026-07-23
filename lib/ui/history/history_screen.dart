@@ -37,6 +37,29 @@ class HistoryScreen extends ConsumerWidget {
     ref.invalidate(nextWorkoutProvider);
   }
 
+  Future<bool> _confirmDeleteSession(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir treino'),
+        content: const Text(
+          'Isso vai apagar este treino registrado, incluindo séries, cargas e repetições. Essa ação não pode ser desfeita.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(historyProvider);
@@ -70,20 +93,40 @@ class HistoryScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final session = sessions[index];
               final goalMode = GoalMode.fromStorageKey(session.goalMode);
-              return ListTile(
-                leading: CircleAvatar(child: Text(session.workoutLetter)),
-                title: Text('Treino ${session.workoutLetter} · ${goalMode.label}'),
-                subtitle: Text(dateFormat.format(session.date)),
-                trailing: session.completedAt != null
-                    ? const Icon(Icons.check_circle, color: Colors.green)
-                    : const Icon(Icons.hourglass_bottom, color: Colors.orange),
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => SessionDetailScreen(sessionId: session.id),
-                    ),
-                  );
+              return Dismissible(
+                key: ValueKey(session.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                confirmDismiss: (_) => _confirmDeleteSession(context),
+                onDismissed: (_) async {
+                  final repo = ref.read(sessionRepositoryProvider);
+                  await repo.deleteSession(session.id);
+                  ref.invalidate(historyProvider);
+                  ref.invalidate(nextWorkoutProvider);
                 },
+                child: ListTile(
+                  leading: CircleAvatar(child: Text(session.workoutLetter)),
+                  title: Text('Treino ${session.workoutLetter} · ${goalMode.label}'),
+                  subtitle: Text(dateFormat.format(session.date)),
+                  trailing: session.completedAt != null
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : const Icon(Icons.hourglass_bottom, color: Colors.orange),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SessionDetailScreen(sessionId: session.id),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           );

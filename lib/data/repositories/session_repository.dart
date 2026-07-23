@@ -71,6 +71,32 @@ class SessionRepository {
     await db.delete('set_logs', where: 'id = ?', whereArgs: [setId]);
   }
 
+  /// Busca a última série registrada para este exercício em uma sessão
+  /// anterior (excluindo a sessão atual), para sugerir o mesmo peso/reps.
+  Future<SetEntry?> getLastLoggedSet({
+    required String exerciseId,
+    required int excludeSessionId,
+  }) async {
+    final db = await _appDb.database;
+    final rows = await db.rawQuery('''
+      SELECT sl.id, sl.set_number, sl.weight_kg, sl.reps
+      FROM set_logs sl
+      INNER JOIN session_exercises se ON se.id = sl.session_exercise_id
+      INNER JOIN workout_sessions ws ON ws.id = se.session_id
+      WHERE se.exercise_id = ? AND ws.id != ?
+      ORDER BY ws.date DESC, sl.set_number DESC
+      LIMIT 1
+    ''', [exerciseId, excludeSessionId]);
+    if (rows.isEmpty) return null;
+    final r = rows.first;
+    return SetEntry(
+      id: r['id'] as int,
+      setNumber: r['set_number'] as int,
+      weightKg: (r['weight_kg'] as num?)?.toDouble(),
+      reps: r['reps'] as int?,
+    );
+  }
+
   Future<void> completeSession(int sessionId) async {
     final db = await _appDb.database;
     await db.update(
